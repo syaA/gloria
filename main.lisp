@@ -4,7 +4,9 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (load "load.lisp")
-  (load "vec.lisp"))
+  (load "vec.lisp")
+  (load "util.lisp")
+  (load "sprite.lisp"))
 
 (defparameter *assets* (make-hash-table))
 
@@ -17,78 +19,31 @@
 (defun clear-assets ()
   (clrhash *assets*))
 
-(defun dump-hash (hash)
-  (maphash #'(lambda (k v) (format t "~A => ~A~%" k v)) hash))
-
-(defclass sprite ()
-  ((surface :initarg :surface)
-   (cell :initarg :cell)))
-
-(defun register-sprite (name surface cell-width cell-height num-col num-row &optional (init-x 0) (init-y 0))
-  (let ((cells (loop for y from 0 below num-row
-		  append (loop for x from 0 below num-col
-			    collect `(,(+ init-x (* x cell-width))
-				       ,(+ init-y (* y cell-height))
-				       ,cell-width
-				       ,cell-height))))
-	(surface (get-asset surface)))
-    (setf (sdl::cells surface) cells)
-    (loop for cell from 0 below (length cells)
-       do (register-asset (intern (format nil "~A-~A" name cell))
-			  (make-instance 'sprite :surface surface :cell cell)))))
-
-(defun draw-sprite-at (sprite point)
-  (with-slots (surface cell) sprite
-    (sdl:draw-surface-at surface point :cell cell)))
-
-(defclass sprite-animation ()
-  ((pattern :initarg :pattern)
-   (wait :initarg :wait :initform 0)))
+(defun register-sprite (name surface-name cell-width cell-height num-col num-row &optional (init-x 0) (init-y 0))
+  (loop for spr in (make-sprites (get-asset surface-name)
+				 (make-sprite-cells cell-width
+						    cell-height
+						    num-col
+						    num-row
+						    init-x
+						    init-y))
+       for cell from 0
+       do (register-asset (intern (format nil "~A-~A" name cell)) spr)))
 
 (defun register-sprite-animation (name pattern wait)
   (register-asset name
-		  (make-instance 'sprite-animation
+		  (make-instance '<sprite-pattern-animation>
 				 :pattern (mapcar #'(lambda (sym) (get-asset sym)) pattern)
 				 :wait wait)))
 
-(defclass sprite-animator ()
-  ((animation :initarg :animation :initform nil)
-   timer
-   (current :initform 0)))
-
-(defun sprite-animator-reset (sprit-animator &optional new-animation)
-  (with-slots (animation timer current) sprit-animator
-    (if new-animation
-	(setf animation new-animation))
-    (when animation
-      (setf current 0)
-      (setf timer (slot-value animation 'wait)))))
-
-(defmethod initialize-instance :after ((this sprite-animator) &key)
-  (sprite-animator-reset this))
-
-(defun sprite-animator-update (sprite-animator)
-  (with-slots (animation timer current) sprite-animator
-    (when animation
-      (with-slots (pattern wait) animation
-	(when (<= (decf timer) 0)
-	  (when (>= (incf current) (length pattern))
-	    (setf current 0))
-	  (setf timer wait))))))
-
-(defun sprite-animator-current (sprite-animator)
-  (with-slots (animation current) sprite-animator
-    (if animation
-	(elt (slot-value animation 'pattern) current))))
-
-(defclass sprite-animation-set ()
+(defclass <sprite-animation-set> ()
   ((north :initarg :north)
    (south :initarg :south)
    (east :initarg :east)
    (west :initarg :west)))
 
 (defun register-sprite-animation-set (name north south east west)
-  (register-asset name (make-instance 'sprite-animation-set
+  (register-asset name (make-instance '<sprite-animation-set>
 				      :north (get-asset north)
 				      :south (get-asset south)
 				      :east (get-asset east)
@@ -106,37 +61,37 @@
 (defun clear-entities ()
   (clrhash *entities*))
 
-(defclass chara ()
+(defclass <chara> ()
   ((animation-set :initarg :animation-set)
    animator
    (pos :initarg :pos :initform nil)
    (dir :initarg :dir)
    (movep :initform nil)))
 
-(defmethod initialize-instance :after ((this chara) &key)
+(defmethod initialize-instance :after ((this <chara>) &key)
   (with-slots (animation-set animator dir) this
-    (setf animator (make-instance 'sprite-animator
+    (setf animator (make-instance '<sprite-pattern-animator>
 				  :animation (slot-value animation-set dir)))))
 
-(defmethod update ((this chara) &key)
+(defmethod update ((this <chara>) &key)
   (with-slots (animator movep) this
     (if movep
-	(sprite-animator-update animator))))
+	(sprite-pattern-animator-update animator))))
 
-(defmethod draw ((this chara) &key)
+(defmethod draw ((this <chara>) &key)
   (with-slots (animator pos) this
-    (draw-sprite-at (sprite-animator-current animator) (sdl:point :x (vec:x pos) :y (vec:y pos)))))
+    (draw-sprite-at-* (sprite-pattern-animator-current animator) (vec:x pos) (vec:y pos))))
 
 (defun chara-change-dir (chara new-dir)
   (with-slots (animation-set animator dir) chara
     (when (not (eq dir new-dir))
       (setf dir new-dir)
       (if dir
-	  (sprite-animator-reset animator (slot-value animation-set dir))))))
+	  (sprite-pattern-animator-reset animator (slot-value animation-set dir))))))
 
 
 (defun register-chara (name animation-set pos dir)
-  (register-entity name (make-instance 'chara
+  (register-entity name (make-instance '<chara>
 				       :animation-set (get-asset animation-set)
 				       :pos pos
 				       :dir dir)))
@@ -145,11 +100,11 @@
   (setf (sdl:frame-rate) 60)
   (register-asset 'char01-sheet (sdl:load-image "assets/chara01_a.bmp"
 						:color-key-at (sdl:point :x 0 :y 0)))
-  (register-sprite 'char01 'char01-sheet 24 32 12 8)
-  (register-sprite-animation 'char01-1-n '(char01-55 char01-56 char01-55 char01-54) 10)
-  (register-sprite-animation 'char01-1-e '(char01-67 char01-68 char01-67 char01-66) 10)
-  (register-sprite-animation 'char01-1-s '(char01-79 char01-80 char01-79 char01-78) 10)
-  (register-sprite-animation 'char01-1-w '(char01-91 char01-92 char01-91 char01-90) 10)
+  (register-sprite 'char01 'char01-sheet 24 32 3 4 72 0)
+  (register-sprite-animation 'char01-1-n '(char01-1 char01-2 char01-1 char01-0) 10)
+  (register-sprite-animation 'char01-1-e '(char01-4 char01-5 char01-4 char01-3) 10)
+  (register-sprite-animation 'char01-1-s '(char01-7 char01-8 char01-7 char01-6) 10)
+  (register-sprite-animation 'char01-1-w '(char01-10 char01-11 char01-10 char01-9) 10)
   (register-sprite-animation-set 'char01-1 'char01-1-n 'char01-1-s 'char01-1-e 'char01-1-w)
   (register-chara 'player 'char01-1 (vec:make 100 100 0) 'east))
 
@@ -195,7 +150,7 @@
 	    (progn (setf pos (vec:add pos (dir2vec (car new-veldir))))
 		   (chara-change-dir player (cdr new-veldir))
 		   (setf movep t))
-	    (progn (sprite-animator-reset animator)
+	    (progn (sprite-pattern-animator-reset animator)
 		   (chara-change-dir player nil)
 		   (setf movep nil)))))))
 

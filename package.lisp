@@ -12,4 +12,3 @@
 	   :dot :cross
 	   :lenq :len))
 
-
