@@ -19,12 +19,14 @@
      collect (make-instance '<sprite> :surface surface :cell cell)))
 
 (defun draw-sprite-at-* (spr x y)
-  (with-slots (surface cell) spr
-    (sdl:draw-surface-at-* surface (round-off x) (round-off y) :cell cell)))
+  (unless (null spr)
+    (with-slots (surface cell) spr
+      (sdl:draw-surface-at-* surface (round-off x) (round-off y) :cell cell))))
 
 (defclass <sprite-pattern-animation> ()
   ((pattern :initarg :pattern)
-   (wait :initarg :wait :initform 0)))
+   (wait :initarg :wait :initform 0)
+   (loop :initarg :loop :initform nil)))
 
 (defclass <sprite-pattern-animator> ()
   ((animation :initarg :animation :initform nil)
@@ -45,10 +47,12 @@
 (defun sprite-pattern-animator-update (animator)
   (with-slots (animation timer current) animator
     (when animation
-      (with-slots (pattern wait) animation
+      (with-slots (pattern wait loop) animation
 	(when (<= (decf timer) 0)
 	  (when (>= (incf current) (length pattern))
-	    (setf current 0))
+	    (if loop 
+		(setf current 0)
+		(setf animation nil)))
 	  (setf timer wait))))))
 
 (defun sprite-pattern-animator-current (sprite-animator)

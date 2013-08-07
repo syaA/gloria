@@ -30,11 +30,12 @@
        for cell from 0
        do (register-asset (intern (format nil "~A-~A" name cell)) spr)))
 
-(defun register-sprite-animation (name pattern wait)
+(defun register-sprite-animation (name pattern wait loop)
   (register-asset name
 		  (make-instance '<sprite-pattern-animation>
 				 :pattern (mapcar #'(lambda (sym) (get-asset sym)) pattern)
-				 :wait wait)))
+				 :wait wait
+				 :loop loop)))
 
 (defclass <sprite-animation-set> ()
   ((north :initarg :north)
@@ -101,10 +102,10 @@
   (register-asset 'char01-sheet (sdl:load-image "assets/chara01_a.bmp"
 						:color-key-at (sdl:point :x 0 :y 0)))
   (register-sprite 'char01 'char01-sheet 24 32 3 4 72 0)
-  (register-sprite-animation 'char01-1-n '(char01-1 char01-2 char01-1 char01-0) 10)
-  (register-sprite-animation 'char01-1-e '(char01-4 char01-5 char01-4 char01-3) 10)
-  (register-sprite-animation 'char01-1-s '(char01-7 char01-8 char01-7 char01-6) 10)
-  (register-sprite-animation 'char01-1-w '(char01-10 char01-11 char01-10 char01-9) 10)
+  (register-sprite-animation 'char01-1-n '(char01-1 char01-2 char01-1 char01-0) 10 t)
+  (register-sprite-animation 'char01-1-e '(char01-4 char01-5 char01-4 char01-3) 10 t)
+  (register-sprite-animation 'char01-1-s '(char01-7 char01-8 char01-7 char01-6) 10 t)
+  (register-sprite-animation 'char01-1-w '(char01-10 char01-11 char01-10 char01-9) 10 t)
   (register-sprite-animation-set 'char01-1 'char01-1-n 'char01-1-s 'char01-1-e 'char01-1-w)
   (register-chara 'player 'char01-1 (vec:make 100 100 0) 'east))
 
