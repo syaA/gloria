@@ -164,7 +164,7 @@
 
 (defun game-main ()
     (sdl::with-init ()
-      (sdl:window 600 480 :title-caption "Game")
+      (sdl:window 600 480 :title-caption "Gloria")
       (init)
       (sdl:with-events ()
 	(:quit-event ()
