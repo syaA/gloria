@@ -34,7 +34,7 @@
   (loop for spr in (make-sprites (get-asset surface-name)
 				 (make-sprite-cells cell-width
 						    cell-height
-						    num-col
+					    num-col
 						    num-row
 						    init-x
 						    init-y))
@@ -60,7 +60,50 @@
 				      :south (get-asset south)
 				      :east (get-asset east)
 				      :west (get-asset west))))
-				      
+
+(eval-when (:compile-toplevel :eval)
+  (defmacro muffle-cffi-bare-warning (&body body)
+    `(handler-bind ((alexandria:simple-style-warning
+		     #'(lambda (warning)
+			 (muffle-warning warning))))
+       ,@body))
+  
+  (muffle-cffi-bare-warning
+    (compile
+     (defun load-texture-from-surface (surface)
+       (handler-bind ((alexandria:simple-style-warning
+		       #'(lambda (warning)
+			   (when (alexandria:starts-with-subseq
+				  "bare references to struct types are deprecated."
+				  (simple-condition-format-control warning))
+			     (muffle-warning warning)))))
+	 (sdl-base::with-pixel (pix (sdl:fp surface))
+	   (let ((format (ecase (sdl-base::pixel-bpp pix)
+			   (3 :rgb)
+			   (4 :bgra))))
+	     (assert (and (= (sdl-base::pixel-pitch pix)
+			     (* (sdl:width surface) (sdl-base::pixel-bpp pix)))
+			  (zerop (rem (sdl-base::pixel-pitch pix) 4))))
+	     (gl:tex-image-2d :texture-2d 0 :rgba
+			      (sdl:width surface) (sdl:height surface)
+			      0
+			      format :unsigned-byte
+			      (sdl-base::pixel-data pix)))))))))
+
+(defun init-texture-parameters ()
+  (gl:tex-parameter :texture-2d :texture-min-filter :linear)
+  (gl:tex-parameter :texture-2d :texture-mag-filter :linear)
+  (gl:tex-parameter :texture-2d :texture-wrap-s :repeat)
+  (gl:tex-parameter :texture-2d :texture-wrap-t :repeat)
+  (gl:tex-parameter :texture-2d :texture-border-color '(0 0 0 0)))
+
+(defun create-texture-from-file (fname)
+  (let ((texture (car (gl:gen-textures 1)))
+	(surface (sdl-image:load-image fname :image-type :tga)))
+    (gl:bind-texture :texture-2d texture)
+    (load-texture-from-surface surface)
+    (init-texture-parameters)
+    texture))
 
 (defparameter *entities* (make-hash-table))
 
@@ -110,15 +153,18 @@
 
 (defun init ()
   (setf (sdl:frame-rate) 60)
-  (register-asset 'char01-sheet (sdl:load-image "assets/chara01_a.bmp"
-						:color-key-at (sdl:point :x 0 :y 0)))
-  (register-sprite 'char01 'char01-sheet 24 32 3 4 72 0)
-  (register-sprite-animation 'char01-1-n '(char01-1 char01-2 char01-1 char01-0) 10 t)
-  (register-sprite-animation 'char01-1-e '(char01-4 char01-5 char01-4 char01-3) 10 t)
-  (register-sprite-animation 'char01-1-s '(char01-7 char01-8 char01-7 char01-6) 10 t)
-  (register-sprite-animation 'char01-1-w '(char01-10 char01-11 char01-10 char01-9) 10 t)
-  (register-sprite-animation-set 'char01-1 'char01-1-n 'char01-1-s 'char01-1-e 'char01-1-w)
-  (register-chara 'player 'char01-1 (vec:make 100 100 0) 'east))
+  (register-asset 'char01-sheet-texture (create-texture-from-file "assets/vx_chara01_a.tga"))
+
+;  (register-asset 'char01-sheet (sdl:load-image "assets/chara01_a.bmp"
+;						:color-key-at (sdl:point :x 0 :y 0)))
+;  (register-sprite 'char01 'char01-sheet 24 32 3 4 72 0)
+;  (register-sprite-animation 'char01-1-n '(char01-1 char01-2 char01-1 char01-0) 10 t)
+;  (register-sprite-animation 'char01-1-e '(char01-4 char01-5 char01-4 char01-3) 10 t)
+;  (register-sprite-animation 'char01-1-s '(char01-7 char01-8 char01-7 char01-6) 10 t)
+;  (register-sprite-animation 'char01-1-w '(char01-10 char01-11 char01-10 char01-9) 10 t)
+;  (register-sprite-animation-set 'char01-1 'char01-1-n 'char01-1-s 'char01-1-e 'char01-1-w)
+;  (register-chara 'player 'char01-1 (vec:make 100 100 0) 'east))
+)
 
 (defconstant +sqrt2inv+ (/ 1 (sqrt 2)))
 
@@ -167,18 +213,39 @@
 		   (setf movep nil)))))))
 
 (defun game-update ()
-  (handle-user-input)
-  (maphash #'(lambda (k v) (update v)) *entities*))
+  )
+;  (handle-user-input)
+;  (maphash #'(lambda (k v)
+;	       (declare (ignore k))
+;	       (update v)) *entities*))
 
 (defun game-draw ()
-  (maphash #'(lambda (k v) (draw v)) *entities*))
+  (gl:clear :color-buffer-bit)
+  (gl:enable :blend)
+  (gl:blend-func :src-alpha :one-minus-src-alpha)
+  (gl:enable :texture-2d)
+  (gl:bind-texture :texture-2d (get-asset 'char01-sheet-texture))
+  (gl:color 1 1 1)
+  (gl:with-primitive :quads
+    (gl:tex-coord 0 1)
+    (gl:vertex -1 -1 0)
+    (gl:tex-coord 1 1)
+    (gl:vertex  1 -1 0)
+    (gl:tex-coord 1 0)
+    (gl:vertex  1  1 0)
+    (gl:tex-coord 0 0)
+    (gl:vertex -1  1 0))
+  (gl:flush))
+;  (maphash #'(lambda (k v) (draw v)) *entities*))
 
 (defun game-main ()
     (sdl::with-init ()
-      (sdl:window 600 480 :title-caption "Gloria")
+      (sdl:window 640 480 :title-caption "Gloria" :flags sdl:sdl-opengl)
+      (setf cl-opengl-bindings:*gl-get-proc-address* #'sdl-cffi::sdl-gl-get-proc-address)
       (init)
       (sdl:with-events ()
 	(:quit-event ()
+		     (gl:delete-textures (list (get-asset 'char01-sheet-texture)))
 		     (clear-assets)
 		     (clear-entities)
 		     t)
