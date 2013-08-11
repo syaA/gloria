@@ -61,7 +61,7 @@
 				      :east (get-asset east)
 				      :west (get-asset west))))
 
-(eval-when (:compile-toplevel :eval)
+(eval-when (:compile-toplevel)
   (defmacro with-muffle-cffi-bare-warning (&body body)
     `(handler-bind ((alexandria:simple-style-warning
 		     #'(lambda (warning)
