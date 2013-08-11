@@ -62,13 +62,13 @@
 				      :west (get-asset west))))
 
 (eval-when (:compile-toplevel :eval)
-  (defmacro muffle-cffi-bare-warning (&body body)
+  (defmacro with-muffle-cffi-bare-warning (&body body)
     `(handler-bind ((alexandria:simple-style-warning
 		     #'(lambda (warning)
 			 (muffle-warning warning))))
        ,@body))
   
-  (muffle-cffi-bare-warning
+  (with-muffle-cffi-bare-warning
     (compile
      (defun load-texture-from-surface (surface)
        (handler-bind ((alexandria:simple-style-warning
