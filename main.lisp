@@ -90,19 +90,24 @@
 			      format :unsigned-byte
 			      (sdl-base::pixel-data pix)))))))))
 
-(defun init-texture-parameters ()
-  (gl:tex-parameter :texture-2d :texture-min-filter :linear)
-  (gl:tex-parameter :texture-2d :texture-mag-filter :linear)
-  (gl:tex-parameter :texture-2d :texture-wrap-s :repeat)
-  (gl:tex-parameter :texture-2d :texture-wrap-t :repeat)
-  (gl:tex-parameter :texture-2d :texture-border-color '(0 0 0 0)))
-
+(defun set-texture-parameter(texture &key (min-filter :linear)
+			      (mag-filter :linear)
+			      (wrap-s :repeat)
+			      (wrap-t :repeat)
+			      (border-color '(0 0 0 0)))
+  (gl:bind-texture :texture-2d texture)
+  (gl:tex-parameter :texture-2d :texture-min-filter min-filter)
+  (gl:tex-parameter :texture-2d :texture-mag-filter mag-filter)
+  (gl:tex-parameter :texture-2d :texture-wrap-s wrap-s)
+  (gl:tex-parameter :texture-2d :texture-wrap-t wrap-t)
+  (gl:tex-parameter :texture-2d :texture-border-color border-color))
+  
 (defun create-texture-from-file (fname)
   (let ((texture (car (gl:gen-textures 1)))
 	(surface (sdl-image:load-image fname :image-type :tga)))
     (gl:bind-texture :texture-2d texture)
     (load-texture-from-surface surface)
-    (init-texture-parameters)
+    (set-texture-parameter texture)
     texture))
 
 (defparameter *entities* (make-hash-table))
