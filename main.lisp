@@ -178,7 +178,7 @@
   (setup-ortho-projection 640 480)
   (maphash #'(lambda (k v)
 	       (declare (ignore k))
-	       (draw v)) *entities*))
+	       (draw v)) *entities*)
   (gl:flush))
 
 (defun game-main ()
