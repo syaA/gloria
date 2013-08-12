@@ -1,27 +1,46 @@
 
+(load "load.lisp")
 (load "util.lisp")
+(load "texture.lisp")
 
 (defclass <sprite> ()
-  ((surface :initarg :surface)
+  ((texture :initarg :texture)
    (cell :initarg :cell)))
 
-(defun make-sprite-cells (cell-width cell-height num-col num-row &optional (init-x 0) (init-y 0))
-  (loop for y from 0 below num-row
-     append (loop for x from 0 below num-col
-	       collect `(,(+ init-x (* x cell-width))
-			  ,(+ init-y (* y cell-height))
-			  ,cell-width
-			  ,cell-height))))
+(defun make-sprite-cells (texture cell-width cell-height num-col num-row &optional (init-x 0) (init-y 0))
+  (let ((width (texture-width texture))
+	(height (texture-height texture)))
+    (loop for y from 0 below num-row
+       append (loop for x from 0 below num-col
+		 collect `(,(/f (+ init-x (* x cell-width)) width)
+			    ,(/f (+ init-y (* y cell-height)) height)
+			    ,(/f (+ init-x (* x cell-width) cell-width) width)
+			    ,(/f (+ init-y (* y cell-height) cell-height) height)
+			    ,cell-width
+			    ,cell-height)))))
 			  
-(defun make-sprites (surface cells)
-  (setf (sdl:cells surface) cells)
-  (loop for cell from 0 below (length cells)
-     collect (make-instance '<sprite> :surface surface :cell cell)))
+(defun make-sprites (texture cells)
+  (mapcar #'(lambda (cell) (make-instance '<sprite> :texture texture :cell cell)) cells))
 
-(defun draw-sprite-at-* (spr x y)
-  (unless (null spr)
-    (with-slots (surface cell) spr
-      (sdl:draw-surface-at-* surface (round-off x) (round-off y) :cell cell))))
+(defun draw-sprite-at (spr x y &optional (w nil w-sup-p) (h nil h-sup-p))
+  (with-slots (texture cell) spr
+    (gl:enable :blend)
+    (gl:blend-func :src-alpha :one-minus-src-alpha)
+    (gl:enable :texture-2d)
+    (gl:bind-texture :texture-2d (texture-name texture))
+    (gl:color 1 1 1)
+    (destructuring-bind (u0 v0 u1 v1 width height) cell
+      (unless w-sup-p (setf w width))
+      (unless h-sup-p (setf h height))
+      (gl:with-primitive :quads
+	(gl:tex-coord u0 v0)
+	(gl:vertex x y 0)
+	(gl:tex-coord u0 v1)
+	(gl:vertex x (+ y h) 0)
+	(gl:tex-coord u1 v1)
+	(gl:vertex (+ x w) (+ y h) 0)
+	(gl:tex-coord u1 v0)
+	(gl:vertex (+ x w) y 0)))))
 
 (defclass <sprite-pattern-animation> ()
   ((pattern :initarg :pattern)
