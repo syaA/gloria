@@ -1,7 +1,7 @@
 
 (load "load.lisp")
 (load "util.lisp")
-(load "texture.lisp")
+(load (compile-file "texture.lisp"))
 
 (defclass <sprite> ()
   ((texture :initarg :texture)
