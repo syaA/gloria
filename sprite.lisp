@@ -1,6 +1,7 @@
 
 (defclass <sprite> ()
   ((texture :initarg :texture)
+   (base :initarg :base)
    (cell :initarg :cell)))
 
 (defun make-sprite-cells (texture cell-width cell-height num-col num-row &optional (init-x 0) (init-y 0))
@@ -15,11 +16,11 @@
 			    ,cell-width
 			    ,cell-height)))))
 			  
-(defun make-sprites (texture cells)
-  (mapcar #'(lambda (cell) (make-instance '<sprite> :texture texture :cell cell)) cells))
+(defun make-sprites (texture base cells)
+  (mapcar #'(lambda (cell) (make-instance '<sprite> :texture texture :base base :cell cell)) cells))
 
 (defun draw-sprite-at (spr x y &optional (w nil w-sup-p) (h nil h-sup-p))
-  (with-slots (texture cell) spr
+  (with-slots (texture base cell) spr
     (gl:enable :blend)
     (gl:blend-func :src-alpha :one-minus-src-alpha)
     (gl:enable :texture-2d)
@@ -28,6 +29,8 @@
     (destructuring-bind (u0 v0 u1 v1 width height) cell
       (unless w-sup-p (setf w width))
       (unless h-sup-p (setf h height))
+      (setf x (- x (vec:x base)))
+      (setf y (- y (vec:y base)))
       (gl:with-primitive :quads
 	(gl:tex-coord u0 v0)
 	(gl:vertex x y 0)

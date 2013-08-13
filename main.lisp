@@ -18,17 +18,23 @@
       (get-asset symbol-or-object)
       symbol-or-object))
 
-(defun register-sprite (name texture cell-width cell-height num-col num-row &optional (init-x 0) (init-y 0))
-  (loop for spr in (make-sprites (asset texture)
-				 (make-sprite-cells (asset texture)
-						    cell-width
-						    cell-height
-						    num-col
-						    num-row
-						    init-x
-						    init-y))
-       for cell from 0
-       do (register-asset (intern (format nil "~A-~A" name cell)) spr)))
+(defun register-sprite (name texture
+			cell-width cell-height num-col num-row
+			&key (init-x 0) (init-y 0) (base-x 0) (base-y 0))
+  (let ((sprs (make-sprites (asset texture)
+			    (vec:make base-x base-y 0)
+			    (make-sprite-cells (asset texture)
+					       cell-width
+					       cell-height
+					       num-col
+					       num-row
+					       init-x
+					       init-y))))
+    (if (null (cdr sprs))
+	(register-asset name (car sprs))
+	(loop for spr in sprs
+	   for cell from 0
+	   do (register-asset (intern (format nil "~A-~A" name cell)) spr)))))
 
 (defun register-sprite-animation (name pattern wait loop)
   (register-asset name
@@ -211,7 +217,7 @@
 						  :owner player
 						  :pos (slot-value player 'pos)
 						  :dir (slot-value player 'dir)
-						  :sprite (asset 'sword-0)))))))
+						  :sprite (asset 'sword)))))))
 
 (defun game-update ()
   (handle-user-input)
@@ -233,13 +239,13 @@
   (gl:matrix-mode :modelview))
   
 (defun game-draw ()
+  (clear-render-tree)
   (gl:clear :color-buffer-bit)
   (setup-ortho-projection 640 480)
   (maphash #'(lambda (k v)
 	       (declare (ignore k))
 	       (draw v)) *entities*)
   (mapc #'(lambda (drawer) (funcall drawer)) *render-tree*)
-  (clear-render-tree)
   (gl:flush))
 
 (defun game-main ()
