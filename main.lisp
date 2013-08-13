@@ -80,6 +80,14 @@
 (defun clear-entities ()
   (clrhash *entities*))
 
+(defparameter *render-tree* nil)
+
+(defmacro push-render-tree (&body body)
+  `(push #'(lambda () ,@body) *render-tree*))
+
+(defun clear-render-tree ()
+    (setf *render-tree* nil))
+
 (defgeneric update (obj &key)
   )
 
@@ -106,7 +114,8 @@
 
 (defmethod draw ((this <chara>) &key)
   (with-slots (animator pos) this
-    (draw-sprite-at (sprite-pattern-animator-current animator) (vec:x pos) (vec:y pos))))
+    (push-render-tree
+     (draw-sprite-at (sprite-pattern-animator-current animator) (vec:x pos) (vec:y pos)))))
 
 (defun chara-change-dir (chara new-dir)
   (with-slots (animation-set animator dir) chara
@@ -141,7 +150,8 @@
 
 (defmethod draw ((this <weapon>) &key)
   (with-slots (sprite pos) this
-    (draw-sprite-at sprite (vec:x pos) (vec:y pos))))
+    (push-render-tree
+      (draw-sprite-at sprite (vec:x pos) (vec:y pos)))))
 
 (defun init ()
   (clear-assets)
@@ -228,6 +238,8 @@
   (maphash #'(lambda (k v)
 	       (declare (ignore k))
 	       (draw v)) *entities*)
+  (mapc #'(lambda (drawer) (funcall drawer)) *render-tree*)
+  (clear-render-tree)
   (gl:flush))
 
 (defun game-main ()
