@@ -1,7 +1,4 @@
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (load "load.lisp"))
-
 (defclass <texture> ()
   ((name :initarg :name :reader texture-name)
    (width :initarg :width :reader texture-width)

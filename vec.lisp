@@ -1,6 +1,4 @@
 
-(load "load.lisp")
-
 (in-package :vec)
 
 (defun make (x y &optional (z 0) (w 1))

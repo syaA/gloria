@@ -1,9 +1,6 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (load "load.lisp")
-  (load "vec.lisp")
-  (load "util.lisp")
-  (load "sprite.lisp"))
+  (load "load.lisp"))
 
 (defparameter *assets* (make-hash-table))
 
@@ -65,7 +62,6 @@
 		  (sprite-pattern-animation (apply #'register-sprite-animation (cdr l)))
 		  (sprite-animation-set (apply #'register-sprite-animation-set (cdr l)))))
 	    (read in nil nil)))))
-      
 
 
 (defparameter *entities* (make-hash-table))

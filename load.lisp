@@ -16,4 +16,8 @@
 
 (load (compile-file "package.lisp"))
 
+(load "vec.lisp")
+(load "util.lisp")
+(load (compile-file "texture.lisp"))
+(load "sprite.lisp")
 
