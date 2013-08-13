@@ -53,6 +53,21 @@
 				      :east (get-asset east)
 				      :west (get-asset west))))
 
+(defun register-asset-from-file (asset-config-file)
+  (let ((base-dir (cadr (pathname-directory asset-config-file))))
+    (with-open-file (in asset-config-file)
+      (mapc #'(lambda (l) 
+		(ecase (car l)
+		  (texture (register-asset (cadr l)
+					   (create-texture-from-file
+					    (make-pathname :directory base-dir :defaults (caddr l)))))
+		  (sprite (apply #'register-sprite (cdr l)))
+		  (sprite-pattern-animation (apply #'register-sprite-animation (cdr l)))
+		  (sprite-animation-set (apply #'register-sprite-animation-set (cdr l)))))
+	    (read in nil nil)))))
+      
+
+
 (defparameter *entities* (make-hash-table))
 
 (defun register-entity (name content)
@@ -95,20 +110,14 @@
 
 (defun register-chara (name animation-set pos dir)
   (register-entity name (make-instance '<chara>
-				       :animation-set (get-asset animation-set)
+				       :animation-set (asset animation-set)
 				       :pos pos
 				       :dir dir)))
 
 (defun init ()
   (setf (sdl:frame-rate) 60)
-  (register-asset 'char01-sheet (create-texture-from-file "assets/vx_chara01_a.tga"))
-  (register-sprite 'char01 'char01-sheet 32 48 3 4 96 0)
-  (register-sprite-animation 'char01-1-s '(char01-1 char01-2 char01-1 char01-0) 10 t)
-  (register-sprite-animation 'char01-1-w '(char01-4 char01-5 char01-4 char01-3) 10 t)
-  (register-sprite-animation 'char01-1-e '(char01-7 char01-8 char01-7 char01-6) 10 t)
-  (register-sprite-animation 'char01-1-n '(char01-10 char01-11 char01-10 char01-9) 10 t)
-  (register-sprite-animation-set 'char01-1 'char01-1-n 'char01-1-s 'char01-1-e 'char01-1-w)
-  (register-chara 'player 'char01-1 (vec:make 100 100 0) 'east))
+  (register-asset-from-file "assets/assets.lisp")
+  (register-chara 'player 'char1-set (vec:make 100 100 0) 'east))
 
 (defconstant +sqrt2inv+ (/ 1 (sqrt 2)))
 
