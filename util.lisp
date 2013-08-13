@@ -14,3 +14,9 @@
 (defun rad2deg (rad)
   (* (/ rad pi) 180))
 
+(defgeneric lerp (a b r)
+  (:documentation "calc linear interpolation (+ a (* (- b a) r))"))
+
+(defmethod lerp (a b r)
+  (+ a (* (- b a) r)))
+
