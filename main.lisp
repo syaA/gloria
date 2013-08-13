@@ -50,6 +50,10 @@
 				      :east (get-asset east)
 				      :west (get-asset west))))
 
+(defun register-key-frame-animation (name key-frame loop)
+  (register-asset name
+		  (make-instance '<key-frame-animation> :key-frame key-frame :loop loop)))
+
 (defun register-asset-from-file (asset-config-file)
   (let ((base-dir (cadr (pathname-directory asset-config-file))))
     (with-open-file (in asset-config-file)
@@ -60,7 +64,8 @@
 					    (make-pathname :directory base-dir :defaults (caddr l)))))
 		  (sprite (apply #'register-sprite (cdr l)))
 		  (sprite-pattern-animation (apply #'register-sprite-animation (cdr l)))
-		  (sprite-animation-set (apply #'register-sprite-animation-set (cdr l)))))
+		  (sprite-animation-set (apply #'register-sprite-animation-set (cdr l)))
+		  (key-frame-animation (apply #'register-key-frame-animation (cdr l)))))
 	    (read in nil nil)))))
 
 
@@ -74,6 +79,12 @@
 
 (defun clear-entities ()
   (clrhash *entities*))
+
+(defgeneric update (obj &key)
+  )
+
+(defgeneric draw (obj &key)
+  )
 
 (defclass <chara> ()
   ((animation-set :initarg :animation-set)
@@ -90,7 +101,8 @@
 (defmethod update ((this <chara>) &key)
   (with-slots (animator movep) this
     (if movep
-	(sprite-pattern-animator-update animator))))
+	(sprite-pattern-animator-update animator)))
+  t)
 
 (defmethod draw ((this <chara>) &key)
   (with-slots (animator pos) this
@@ -110,9 +122,33 @@
 				       :pos pos
 				       :dir dir)))
 
+(defclass <weapon> ()
+  ((owner :initarg :owner)
+   animator
+   (sprite :initarg :sprite)
+   (pos :initarg :pos)
+   (dir :initarg :dir)))
+
+(defmethod initialize-instance :after ((this <weapon>) &key)
+  (with-slots (animator) this
+    (setf animator (make-instance '<key-frame-animator> :animation (asset 'weapon-swing)))))
+
+(defmethod update ((this <weapon>) &key)
+  (with-slots (owner animator pos) this
+    (setf pos (slot-value owner 'pos))
+    (key-frame-animator-update animator)
+    (not (key-frame-animator-finish? animator))))
+
+(defmethod draw ((this <weapon>) &key)
+  (with-slots (sprite pos) this
+    (draw-sprite-at sprite (vec:x pos) (vec:y pos))))
+
 (defun init ()
+  (clear-assets)
+  (clear-entities)
   (setf (sdl:frame-rate) 60)
   (register-asset-from-file "assets/assets.lisp")
+  (dump-hash *assets*)
   (register-chara 'player 'char1-set (vec:make 100 100 0) 'east))
 
 (defconstant +sqrt2inv+ (/ 1 (sqrt 2)))
@@ -154,18 +190,26 @@
 			 (sdl:key-down-p :sdl-key-d)
 			 dir)))
 	(if new-veldir
-	    (progn (setf pos (vec:add pos (dir2vec (car new-veldir))))
+	    (progn (setf pos (vec:add pos (vec:scale (dir2vec (car new-veldir)) 3)))
 		   (chara-change-dir player (cdr new-veldir))
 		   (setf movep t))
 	    (progn (sprite-pattern-animator-reset animator)
 		   (chara-change-dir player nil)
-		   (setf movep nil)))))))
+		   (setf movep nil))))
+      (if (sdl:mouse-left-p)
+	  (register-entity 'weapon (make-instance '<weapon>
+						  :owner player
+						  :pos (slot-value player 'pos)
+						  :dir (slot-value player 'dir)
+						  :sprite (asset 'sword-0)))))))
 
 (defun game-update ()
   (handle-user-input)
-  (maphash #'(lambda (k v)
-	       (declare (ignore k))
-	       (update v)) *entities*))
+  (let (rems)
+    (maphash #'(lambda (k v)
+		 (unless (update v)
+		   (push k rems))) *entities*)
+    (mapc #'(lambda (k) (remhash k *entities*)) rems)))
 
 (defparameter *screen-width* 640)
 (defparameter *screen-height* 480)

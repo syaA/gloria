@@ -44,3 +44,7 @@
   (with-slots (current-value) key-frame-animator
     current-value))
 
+(defun key-frame-animator-finish? (key-frame-animator)
+  (with-slots (animation current-frame) key-frame-animator
+    (with-slots (loop) animation
+      (and (not loop) (null (cddr current-frame))))))
