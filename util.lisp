@@ -8,3 +8,9 @@
 (defun dump-hash (hash)
   (maphash #'(lambda (k v) (format t "~A => ~A~%" k v)) hash))
 
+(defun deg2rad (deg)
+  (* (/ deg 180.0) pi))
+
+(defun rad2deg (rad)
+  (* (/ rad pi) 180))
+
