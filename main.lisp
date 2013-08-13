@@ -36,7 +36,7 @@
 (defun register-sprite-animation (name pattern wait loop)
   (register-asset name
 		  (make-instance '<sprite-pattern-animation>
-				 :pattern (mapcar #'(lambda (sym) (get-asset sym)) pattern)
+				 :pattern (mapcar #'asset pattern)
 				 :wait wait
 				 :loop loop)))
 
