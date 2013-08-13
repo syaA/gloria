@@ -20,9 +20,13 @@
 
 (defun register-sprite (name texture
 			cell-width cell-height num-col num-row
-			&key (init-x 0) (init-y 0) (base-x 0) (base-y 0))
+			&key (init-x 0) (init-y 0) (base-x 0) (base-y 0)
+			(rot-center-x 0 rot-center-x-sup-p) (rot-center-y 0 rot-center-y-sup-p))
   (let ((sprs (make-sprites (asset texture)
 			    (vec:make base-x base-y 0)
+			    (if (or rot-center-x-sup-p rot-center-y-sup-p)
+				(vec:make rot-center-x rot-center-y)
+				(vec:make base-x base-y))
 			    (make-sprite-cells (asset texture)
 					       cell-width
 					       cell-height
@@ -155,9 +159,9 @@
     (not (key-frame-animator-finish? animator))))
 
 (defmethod draw ((this <weapon>) &key)
-  (with-slots (sprite pos) this
+  (with-slots (animator sprite pos) this
     (push-render-tree
-      (draw-sprite-at sprite (vec:x pos) (vec:y pos)))))
+      (draw-sprite-at sprite (vec:x pos) (vec:y pos) :rot (key-frame-animator-current animator)))))
 
 (defun init ()
   (clear-assets)

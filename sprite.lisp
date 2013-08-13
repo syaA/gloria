@@ -2,7 +2,13 @@
 (defclass <sprite> ()
   ((texture :initarg :texture)
    (base :initarg :base)
-   (cell :initarg :cell)))
+   (cell :initarg :cell)
+   (rot-center :initarg :rot-center :initform nil)))
+
+(defmethod initialize-after :after ((this <sprite>) &key)
+  (with-slots (base rot-center) this
+    (unless rot-center
+      (setf rot-center base))))
 
 (defun make-sprite-cells (texture cell-width cell-height num-col num-row &optional (init-x 0) (init-y 0))
   (let ((width (texture-width texture))
@@ -16,11 +22,16 @@
 			    ,cell-width
 			    ,cell-height)))))
 			  
-(defun make-sprites (texture base cells)
-  (mapcar #'(lambda (cell) (make-instance '<sprite> :texture texture :base base :cell cell)) cells))
+(defun make-sprites (texture base rot-center cells)
+  (mapcar #'(lambda (cell) (make-instance '<sprite>
+					  :texture texture :base base :rot-center rot-center :cell cell)) cells))
 
-(defun draw-sprite-at (spr x y &optional (w nil w-sup-p) (h nil h-sup-p))
-  (with-slots (texture base cell) spr
+(defun draw-sprite-at (spr x y
+		       &key
+		       (rot nil rot-sup-p)
+		       (w nil w-sup-p)
+		       (h nil h-sup-p))
+  (with-slots (texture base rot-center cell) spr
     (gl:enable :blend)
     (gl:blend-func :src-alpha :one-minus-src-alpha)
     (gl:enable :texture-2d)
@@ -31,15 +42,22 @@
       (unless h-sup-p (setf h height))
       (setf x (- x (vec:x base)))
       (setf y (- y (vec:y base)))
+      (gl:matrix-mode :modelview)
+      (gl:load-identity)
+      (gl:translate x y 0)
+      (when rot-sup-p
+	(gl:translate (vec:x rot-center) (vec:y rot-center) 0)
+	(gl:rotate rot 0 0 1)
+	(gl:translate (- (vec:x rot-center)) (- (vec:y rot-center)) 0))
       (gl:with-primitive :quads
 	(gl:tex-coord u0 v0)
-	(gl:vertex x y 0)
+	(gl:vertex 0 0 0)
 	(gl:tex-coord u0 v1)
-	(gl:vertex x (+ y h) 0)
+	(gl:vertex 0 h 0)
 	(gl:tex-coord u1 v1)
-	(gl:vertex (+ x w) (+ y h) 0)
+	(gl:vertex w h 0)
 	(gl:tex-coord u1 v0)
-	(gl:vertex (+ x w) y 0)))))
+	(gl:vertex w 0 0)))))
 
 (defclass <sprite-pattern-animation> ()
   ((pattern :initarg :pattern)
