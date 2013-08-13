@@ -90,6 +90,11 @@
 (defun clear-entities ()
   (clrhash *entities*))
 
+(defun exist-entity? (name)
+  (multiple-value-bind (val exist) (gethash name *entities*)
+    (declare (ignore val))
+    exist))
+
 (defparameter *render-tree* nil)
 
 (defmacro push-render-tree (&body body)
@@ -217,11 +222,12 @@
 		   (chara-change-dir player nil)
 		   (setf movep nil))))
       (if (sdl:mouse-left-p)
-	  (register-entity 'weapon (make-instance '<weapon>
-						  :owner player
-						  :pos (slot-value player 'pos)
-						  :dir (slot-value player 'dir)
-						  :sprite (asset 'sword)))))))
+	  (unless (exist-entity? 'weapon)
+	    (register-entity 'weapon (make-instance '<weapon>
+						    :owner player
+						    :pos (slot-value player 'pos)
+						    :dir (slot-value player 'dir)
+						    :sprite (asset 'sword))))))))
 
 (defun game-update ()
   (handle-user-input)
