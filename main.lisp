@@ -79,21 +79,20 @@
 	    (read in nil nil)))))
 
 
-(defparameter *entities* (make-hash-table))
+(defparameter *entities* nil)
 
 (defun register-entity (name content)
-  (setf (gethash name *entities*) content))
+  (push (cons name content) *entities*))
 
 (defun get-entity (name)
-  (gethash name *entities*))
+  (anaphora:aif (assoc name *entities*)
+       (cdr anaphora:it)))
 
 (defun clear-entities ()
-  (clrhash *entities*))
+  (setf *entities* nil))
 
 (defun exist-entity? (name)
-  (multiple-value-bind (val exist) (gethash name *entities*)
-    (declare (ignore val))
-    exist))
+  (assoc name *entities*))
 
 (defparameter *render-tree* nil)
 
@@ -231,11 +230,10 @@
 
 (defun game-update ()
   (handle-user-input)
-  (let (rems)
-    (maphash #'(lambda (k v)
-		 (unless (update v)
-		   (push k rems))) *entities*)
-    (mapc #'(lambda (k) (remhash k *entities*)) rems)))
+  (setf *entities*
+	(mapcan #'(lambda (acons)
+		    (if (update (cdr acons))
+			(list acons))) *entities*)))
 
 (defparameter *screen-width* 640)
 (defparameter *screen-height* 480)
@@ -252,9 +250,8 @@
   (clear-render-tree)
   (gl:clear :color-buffer-bit)
   (setup-ortho-projection 640 480)
-  (maphash #'(lambda (k v)
-	       (declare (ignore k))
-	       (draw v)) *entities*)
+  (mapc #'(lambda (acons)
+	       (draw (cdr acons))) *entities*)
   (mapc #'(lambda (drawer) (funcall drawer)) *render-tree*)
   (gl:flush))
 
