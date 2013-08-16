@@ -30,8 +30,8 @@
 	(declare (ignore rest))
 	(if (null ntime)
 	    (when loop
-	      (setf current-frame animation)
-	      (setf current-value (caar animation))
+	      (setf current-frame key-frame)
+	      (setf current-value (cadr key-frame))
 	      (setf timer 0))
 	    (if (>= timer ntime)
 		(progn
