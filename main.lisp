@@ -47,14 +47,14 @@
 				 :wait wait
 				 :loop loop)))
 
-(defclass <sprite-animation-set> ()
+(defclass <animation-set> ()
   ((north :initarg :north)
    (south :initarg :south)
    (east :initarg :east)
    (west :initarg :west)))
 
-(defun register-sprite-animation-set (name north south east west)
-  (register-asset name (make-instance '<sprite-animation-set>
+(defun register-animation-set (name north south east west)
+  (register-asset name (make-instance '<animation-set>
 				      :north (get-asset north)
 				      :south (get-asset south)
 				      :east (get-asset east)
@@ -63,6 +63,10 @@
 (defun register-key-frame-animation (name key-frame loop)
   (register-asset name
 		  (make-instance '<key-frame-animation> :key-frame key-frame :loop loop)))
+
+(defun register-rt-animation (name rot trans)
+  (register-asset name
+		  (make-instance '<rt-animation> :rot-animation (asset rot) :trans-animation (asset trans))))
 
 (defun register-asset-from-file (asset-config-file)
   (let ((base-dir (cadr (pathname-directory asset-config-file))))
@@ -74,10 +78,10 @@
 					    (make-pathname :directory base-dir :defaults (caddr l)))))
 		  (sprite (apply #'register-sprite (cdr l)))
 		  (sprite-pattern-animation (apply #'register-sprite-animation (cdr l)))
-		  (sprite-animation-set (apply #'register-sprite-animation-set (cdr l)))
-		  (key-frame-animation (apply #'register-key-frame-animation (cdr l)))))
+		  (animation-set (apply #'register-animation-set (cdr l)))
+		  (key-frame-animation (apply #'register-key-frame-animation (cdr l)))
+		  (rt-animation (apply #'register-rt-animation (cdr l)))))
 	    (read in nil nil)))))
-
 
 (defparameter *entities* nil)
 
@@ -102,6 +106,31 @@
 (defun clear-render-tree ()
     (setf *render-tree* nil))
 
+(defconstant +sqrt2inv+ (/ 1 (sqrt 2)))
+
+(defun dir2vec (dir)
+  (ecase dir
+    (north (vec:make 0 -1 0))
+    (south (vec:make 0 1 0))
+    (west (vec:make -1 0 0))
+    (east (vec:make 1 0 0))
+    (north-west (vec:make (- +sqrt2inv+) (- +sqrt2inv+) 0))
+    (north-east (vec:make +sqrt2inv+ (- +sqrt2inv+) 0))
+    (south-west (vec:make (- +sqrt2inv+) +sqrt2inv+ 0))
+    (south-east (vec:make +sqrt2inv+ +sqrt2inv+ 0))))
+
+(defun dir2rot (dir)
+  (ecase dir
+    (north 0)
+    (south 180)
+    (west 270)
+    (east 90)
+    (north-west 315)
+    (north-east 45)
+    (south-west 225)
+    (south-east 135)))
+
+
 (defgeneric update (obj &key)
   )
 
@@ -121,7 +150,7 @@
 				  :animation (slot-value animation-set dir)))))
 
 (defmethod update ((this <chara>) &key)
-  (with-slots (animator movep) this
+  (with-slots (animator dir movep) this
     (if movep
 	(sprite-pattern-animator-update animator)))
   t)
@@ -133,10 +162,9 @@
 
 (defun chara-change-dir (chara new-dir)
   (with-slots (animation-set animator dir) chara
-    (when (not (eq dir new-dir))
+    (when (and new-dir (not (eq dir new-dir)))
       (setf dir new-dir)
-      (if dir
-	  (sprite-pattern-animator-reset animator (slot-value animation-set dir))))))
+      (sprite-pattern-animator-reset animator (slot-value animation-set dir)))))
 
 
 (defun register-chara (name animation-set pos dir)
@@ -147,25 +175,29 @@
 
 (defclass <weapon> ()
   ((owner :initarg :owner)
+   (animation-set :initarg :animation-set)
    animator
    (sprite :initarg :sprite)
    (pos :initarg :pos)
    (dir :initarg :dir)))
 
 (defmethod initialize-instance :after ((this <weapon>) &key)
-  (with-slots (animator) this
-    (setf animator (make-instance '<key-frame-animator> :animation (asset 'weapon-swing)))))
+  (with-slots (animation-set animator dir) this
+    (setf animator (make-instance '<rt-animator> :animation (slot-value animation-set dir)))))
 
 (defmethod update ((this <weapon>) &key)
-  (with-slots (owner animator pos) this
-    (setf pos (vec:add (slot-value owner 'pos) (vec:make 2 -8 0)))
-    (key-frame-animator-update animator)
-    (not (key-frame-animator-finish? animator))))
+  (with-slots (owner animation-set animator pos dir) this
+    (if (not (rt-animator-finish? animator))
+      (with-slots ((owner-pos pos) (owner-dir dir)) owner
+	(setf pos (vec:add owner-pos (rt-animator-trans-current animator)))
+	(rt-animator-update animator)
+	t))))
 
 (defmethod draw ((this <weapon>) &key)
-  (with-slots (animator sprite pos) this
+  (with-slots (animator sprite pos dir) this
     (push-render-tree
-      (draw-sprite-at sprite (vec:x pos) (vec:y pos) :rot (key-frame-animator-current animator)))))
+      (draw-sprite-at sprite (vec:x pos) (vec:y pos)
+		      :rot (rt-animator-rot-current animator)))))
 
 (defun init ()
   (clear-assets)
@@ -174,20 +206,6 @@
   (register-asset-from-file "assets/assets.lisp")
   (dump-hash *assets*)
   (register-chara 'player 'char1-set (vec:make 100 100 0) 'east))
-
-(defconstant +sqrt2inv+ (/ 1 (sqrt 2)))
-
-(defun dir2vec (dir)
-  (case dir
-    (north (vec:make 0 -1 0))
-    (south (vec:make 0 1 0))
-    (west (vec:make -1 0 0))
-    (east (vec:make 1 0 0))
-    (north-west (vec:make (- +sqrt2inv+) (- +sqrt2inv+) 0))
-    (north-east (vec:make +sqrt2inv+ (- +sqrt2inv+) 0))
-    (south-west (vec:make (- +sqrt2inv+) +sqrt2inv+ 0))
-    (south-east (vec:make +sqrt2inv+ +sqrt2inv+ 0))
-    (t (vec:make 0 0 0))))
 
 (defun vel-from-input (n s w e now-dir)
   (when (and n s)
@@ -224,6 +242,7 @@
 	  (unless (exist-entity? 'weapon)
 	    (register-entity 'weapon (make-instance '<weapon>
 						    :owner player
+						    :animation-set (asset 'weapon-swing-set)
 						    :pos (slot-value player 'pos)
 						    :dir (slot-value player 'dir)
 						    :sprite (asset 'sword))))))))

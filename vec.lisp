@@ -34,4 +34,6 @@
 (defun len (v)
   (sqrt (lenq v)))
 
+(defmethod lerp (a b r)
+  (add a (scale r (sub b a))))
 
