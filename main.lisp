@@ -158,7 +158,7 @@
 
 (defmethod update ((this <weapon>) &key)
   (with-slots (owner animator pos) this
-    (setf pos (slot-value owner 'pos))
+    (setf pos (vec:add (slot-value owner 'pos) (vec:make 2 -8 0)))
     (key-frame-animator-update animator)
     (not (key-frame-animator-finish? animator))))
 

@@ -8,6 +8,6 @@
  (sprite-animation-set char1-set char1-n char1-s char1-e char1-w)
  (texture weapon-sheet "weapon.tga")
  (sprite sword weapon-sheet 32 32 1 1 :base-x 15 :base-y 47 :rot-center-x 15 :rot-center-y 47)
- (key-frame-animation weapon-swing (0 0 20 110) nil)
+ (key-frame-animation weapon-swing (0 20 20 110) nil)
  )
 
